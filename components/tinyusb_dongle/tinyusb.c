@@ -30,6 +30,14 @@ esp_err_t tinyusb_driver_install(const tinyusb_config_t *config)
     };
 
     // External PHY IOs config
+#ifndef USBPHY_VP_NUM
+#define USBPHY_VP_NUM -1
+#define USBPHY_VM_NUM -1
+#define USBPHY_RCV_NUM -1
+#define USBPHY_OEN_NUM -1
+#define USBPHY_VPO_NUM -1
+#define USBPHY_VMO_NUM -1
+#endif
     usb_phy_ext_io_conf_t ext_io_conf = {
         .vp_io_num = USBPHY_VP_NUM,
         .vm_io_num = USBPHY_VM_NUM,

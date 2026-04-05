@@ -56,31 +56,11 @@ Refer to `soc/usb_pins.h` to find the real GPIO number of **USBPHY_DP_NUM** and 
 
 ### 2.3 Software Preparation
 
-* Confirm that the ESP-IDF environment is successfully set up.
+* Confirm that the ESP-IDF v6 environment is successfully set up.
 
-    ```
-    >git checkout release/v4.4
-    >git pull origin release/v4.4
-    >git submodule update --init --recursive
-    >
-    ```
+ 
 
-* To add ESP-IDF environment variables. If you are using Linux OS, you can follow below steps. If you are using other OS, please refer to [Set up the environment variables](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#step-4-set-up-the-environment-variables).
 
-    ```
-    >cd esp-idf
-    >./install.sh
-    >. ./export.sh
-    >
-    ```
-
-* Confirm that the `ESP-IOT-SOLUTION` repository has been completely downloaded, and switch to the `usb/add_usb_solutions` branch.
-
-    ```
-    >git clone -b usb/add_usb_solutions --recursive https://github.com/espressif/esp-iot-solution
-    >cd esp-iot-solution/example/usb/device/usb_dongle
-    >
-    ```
 
 * Set the compilation target to `esp32s2` or `esp32s3`
 
@@ -88,6 +68,29 @@ Refer to `soc/usb_pins.h` to find the real GPIO number of **USBPHY_DP_NUM** and 
     >idf.py set-target esp32s2
     >
     ```
+
+## 2.3 Porting to ESP-IDF v6
+
+The original `esp-iot-solution` firmware was built for older versions of ESP-IDF. Upgrading to v6.0 required fixing deprecated macros and initialization routines:
+
+* **USB PHY Changes**: The `USBPHY_DP_NUM` and `USBPHY_DM_NUM` macros were removed in ESP-IDF v6. We updated `tinyusb.c` to handle the removal of these macros and adapt to the modernized USB PHY driver configuration.
+* **Wi-Fi API Updates**: All instances of `ESP_IF_WIFI_STA` in `cmd_wifi.c` were updated to standard `WIFI_IF_STA`.
+* **Connecting Abort Fix**: We added a logical guard in `cmd_wifi.c` to prevent `esp_wifi_connect()` from aborting on boot when no SSID was previously stored in NVS.
+
+[render_diffs(esp32-pendrive-s3-wifi-dongle/components/tinyusb_dongle/tinyusb.c)]
+[render_diffs(esp32-pendrive-s3-wifi-dongle/main/cmd_wifi.c)]
+
+## 2. Fixing the Espressif Firmware Crash (UART vs CDC)
+
+During configuration testing, the device began crashing whenever a serial command was sent. We discovered a bug in the provided factory firmware inside `data_back.c`.
+
+> [!WARNING]
+> **The Typo Bug:** The code incorrectly relied on `CFG_TUD_CDCACM` (which did not exist) instead of `CFG_TUD_CDC`. This forced the FreeRTOS CLI to route output to a completely uninitialized UART buffer driver (`uart_write_bytes()`), throwing a fatal `uart driver error`. 
+
+We corrected the macro in `data_back.c` to properly prioritize `CFG_TUD_CDC`, ensuring that standard output correctly passes through the `tinyusb_cdcacm_write_queue` without crashing.
+
+[render_diffs(esp32-pendrive-s3-wifi-dongle/main/data_back.c)]
+
 
 ### 2.4 Project Configuration
 
@@ -170,11 +173,11 @@ You can use the following command to build and flash the firmware.
 
 #### Windows
 
-Windows platform only supports RNDIS, USB ECM is not recognized.
+not tested
 
 #### MAC
 
-MAC platform only supports ECM, USB RNDIS is not recognized.
+not tested
 
 #### Linux
 
@@ -271,7 +274,24 @@ sudo dfu-util -d <VendorID> -a 0 -U <OTA_BIN_PATH>
 
 - VendorID is USB vendor ID, the default value 0x303A
 - Read firmware from device into OTA_BIN_PATH
+## Alternative ubuntu w/o df-util:
+To combat Linux background services intercepting the ESP32 connection:
 
+1. **Defeating ModemManager**: Linux defaults to probing new ACM serial devices for 3G cellular modems. Running `sudo systemctl stop ModemManager` prevents the background service from sending AT commands that confuse the ESP32's basic FreeRTOS CLI parser.
+2. **Command Injection**: `miniterm` sends keystrokes asynchronously, while the firmware expects entire strings. Injecting the strings via `echo` bypasses this limitation.
+
+### Connect to Wi-Fi
+```bash
+echo -e 'sta -s WiFi_SSID -p WiFi_Password\n' > /dev/ttyACM0
+```
+
+### Scan Available Networks
+```bash
+# Terminal 1: Display output
+cat /dev/ttyACM0
+
+# Terminal 2: Send Scan command
+echo -e 'scan\n' > /dev/ttyACM0
 #### Windows
 
 1. On Windows you need to download [dfu-util](http://dfu-util.sourceforge.net/releases/dfu-util-0.9-win64.zip) first.

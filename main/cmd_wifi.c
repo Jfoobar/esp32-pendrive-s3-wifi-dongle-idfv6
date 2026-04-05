@@ -102,13 +102,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         uint8_t *tud_network_mac_address_dummy = tud_network_mac_address;
-        esp_wifi_get_mac(ESP_IF_WIFI_STA, tud_network_mac_address_dummy);
+        esp_wifi_get_mac(WIFI_IF_STA, tud_network_mac_address_dummy);
         // esp_wifi_connect();
         wifi_start = true;
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "Wi-Fi STA disconnected");
         s_wifi_is_connected = false;
-        esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_STA, NULL);
+        esp_wifi_internal_reg_rxcb(WIFI_IF_STA, NULL);
 
         if (reconnect && tud_ready()) {
             ESP_LOGI(TAG, "sta disconnect, reconnect...");
@@ -122,7 +122,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
         if (smart_config == false) {
             ESP_LOGI(TAG, "Wi-Fi STA connected");
-            esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_STA, pkt_wifi2usb);
+            esp_wifi_internal_reg_rxcb(WIFI_IF_STA, pkt_wifi2usb);
             s_wifi_is_connected = true;
             xEventGroupClearBits(wifi_event_group, DISCONNECTED_BIT);
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
@@ -171,7 +171,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == SC_EVENT && event_id == SC_EVENT_SEND_ACK_DONE) {
         ESP_LOGI(TAG, "Send ACK done");
         xEventGroupSetBits(wifi_event_group, ESPTOUCH_DONE_BIT);
-        esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_STA, pkt_wifi2usb);
+        esp_wifi_internal_reg_rxcb(WIFI_IF_STA, pkt_wifi2usb);
         s_wifi_is_connected = true;
         xEventGroupClearBits(wifi_event_group, DISCONNECTED_BIT);
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
@@ -407,7 +407,7 @@ void wifi_buffer_free(void *buffer, void *ctx)
 esp_err_t wifi_recv_callback(void *buffer, uint16_t len, void *ctx)
 {
     if (s_wifi_is_connected) {
-        esp_wifi_internal_tx(ESP_IF_WIFI_STA, buffer, len);
+        esp_wifi_internal_tx(WIFI_IF_STA, buffer, len);
     }
     return ESP_OK;
 }
@@ -451,13 +451,14 @@ void initialise_wifi(void)
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     wifi_config_t wifi_config;
-    esp_err_t err = esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config);
+    esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
 
-    if (err == ESP_OK) {
+    if (err == ESP_OK && strlen((const char *)wifi_config.sta.ssid) > 0) {
         ESP_LOGI(TAG, "Connecting to previously configured network: SSID: %s", wifi_config.sta.ssid);
-        ESP_ERROR_CHECK(esp_wifi_connect());
+        esp_wifi_connect();
     } else {
         ESP_LOGI(TAG, "No previously stored Wi-Fi configuration found.");
         // Here you might prompt the user for new Wi-Fi credentials
