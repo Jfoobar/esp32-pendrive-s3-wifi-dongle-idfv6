@@ -80,7 +80,7 @@ The original `esp-iot-solution` firmware was built for older versions of ESP-IDF
 [render_diffs(esp32-pendrive-s3-wifi-dongle/components/tinyusb_dongle/tinyusb.c)]
 [render_diffs(esp32-pendrive-s3-wifi-dongle/main/cmd_wifi.c)]
 
-## 2. Fixing the Espressif Firmware Crash (UART vs CDC)
+##  Fixing the Espressif Firmware Crash (UART vs CDC)
 
 During configuration testing, the device began crashing whenever a serial command was sent. We discovered a bug in the provided factory firmware inside `data_back.c`.
 
@@ -94,9 +94,6 @@ We corrected the macro in `data_back.c` to properly prioritize `CFG_TUD_CDC`, en
 
 ### 2.4 Project Configuration
 
-![tinyusb_config](./_static/tinyusb_config.png)
-
-![uart_config](./_static/uart_config.png)
 
 Currently USB-Dongle supports the following four combination options.
 
