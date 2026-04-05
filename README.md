@@ -194,6 +194,24 @@ Device Drivers   --->
 If you are sure that the network device cannot be seen after the preceding modules are enabled, run the `dmesg` command to view the kernel information to check whether ESP32-S USB network devices are detected in the Linux kernel and whether error messages are displayed.
 
 ## 3. Connect to a Wi-Fi AP
+## Alternative:
+To combat Linux background services intercepting the ESP32 connection:
+
+1. **Defeating ModemManager**: Linux defaults to probing new ACM serial devices for 3G cellular modems. Running `sudo systemctl stop ModemManager` prevents the background service from sending AT commands that confuse the ESP32's basic FreeRTOS CLI parser.
+2. **Command Injection**: `miniterm` sends keystrokes asynchronously, while the firmware expects entire strings. Injecting the strings via `echo` bypasses this limitation.
+
+### Connect to Wi-Fi
+```bash
+echo -e 'sta -s WiFi_SSID -p WiFi_Password\n' > /dev/ttyACM0
+```
+
+### Scan Available Networks
+```bash
+# Terminal 1: Display output
+cat /dev/ttyACM0
+
+# Terminal 2: Send Scan command
+echo -e 'scan\n' > /dev/ttyACM0
 
 The example provides two methods to connect ESP device to a Wi-Fi AP.
 
@@ -271,24 +289,7 @@ sudo dfu-util -d <VendorID> -a 0 -U <OTA_BIN_PATH>
 
 - VendorID is USB vendor ID, the default value 0x303A
 - Read firmware from device into OTA_BIN_PATH
-## Alternative ubuntu w/o df-util:
-To combat Linux background services intercepting the ESP32 connection:
 
-1. **Defeating ModemManager**: Linux defaults to probing new ACM serial devices for 3G cellular modems. Running `sudo systemctl stop ModemManager` prevents the background service from sending AT commands that confuse the ESP32's basic FreeRTOS CLI parser.
-2. **Command Injection**: `miniterm` sends keystrokes asynchronously, while the firmware expects entire strings. Injecting the strings via `echo` bypasses this limitation.
-
-### Connect to Wi-Fi
-```bash
-echo -e 'sta -s WiFi_SSID -p WiFi_Password\n' > /dev/ttyACM0
-```
-
-### Scan Available Networks
-```bash
-# Terminal 1: Display output
-cat /dev/ttyACM0
-
-# Terminal 2: Send Scan command
-echo -e 'scan\n' > /dev/ttyACM0
 #### Windows
 
 1. On Windows you need to download [dfu-util](http://dfu-util.sourceforge.net/releases/dfu-util-0.9-win64.zip) first.
